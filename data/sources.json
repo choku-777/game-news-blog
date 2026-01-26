@@ -11,11 +11,6 @@
       "name": "Game*Spark",
       "type": "rss",
       "url": "https://www.gamespark.jp/rss/index.rdf"
-    },
-    {
-      "name": "ファミ通（保留）",
-      "type": "rss",
-      "url": "https://example.invalid/famitsu-feed"
     }
   ]
 }

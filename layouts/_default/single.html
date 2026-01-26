@@ -2,6 +2,13 @@
   <article>
     <h1>{{ .Title }}</h1>
     <div class="meta">{{ .Date.Format "2006-01-02 15:04" }}</div>
+
+    {{ with .Params.image }}
+      <div class="hero"><img src="{{ . }}" alt="" loading="lazy" /></div>
+    {{ else }}
+      <div class="hero"><img src="{{ "/hero-default.svg" | relURL }}" alt="" loading="lazy" /></div>
+    {{ end }}
+
     {{ .Content }}
   </article>
 {{ end }}

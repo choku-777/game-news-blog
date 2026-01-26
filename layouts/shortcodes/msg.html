@@ -1,0 +1,10 @@
+{{ $side := .Get "side" | default "left" }}
+{{ $name := .Get "name" | default "" }}
+{{ $avatar := .Get "avatar" | default "" }}
+<div class="chat-row {{ if eq $side "right" }}right{{ end }}">
+  {{ if $avatar }}<img class="chat-avatar" src="{{ $avatar }}" alt="{{ $name }}" />{{ else }}<div class="chat-avatar"></div>{{ end }}
+  <div class="chat-col">
+    {{ if $name }}<div class="chat-name">{{ $name }}</div>{{ end }}
+    <div class="chat-bubble">{{ .Inner | markdownify }}</div>
+  </div>
+</div>

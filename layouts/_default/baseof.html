@@ -14,7 +14,7 @@
   -->
 
   <style>
-    :root{--fg:#111;--muted:#666;--bg:#fff;--link:#0b57d0;--max:840px}
+    :root{--fg:#111;--muted:#666;--bg:#fff;--link:#0b57d0;--max:900px;--bubble:#f1f3f5;--bubble2:#dbeafe}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;color:var(--fg);background:var(--bg);line-height:1.7}
     header,main,footer{max-width:var(--max);margin:0 auto;padding:16px}
     header{border-bottom:1px solid #eee}
@@ -23,6 +23,19 @@
     .meta{color:var(--muted);font-size:14px}
     .postlist li{margin:10px 0}
     pre,code{background:#f6f8fa} pre{padding:12px;overflow:auto}
+
+    /* chat bubbles (LINE-ish) */
+    .chat{margin:16px 0;display:flex;flex-direction:column;gap:10px}
+    .chat-row{display:flex;gap:10px;align-items:flex-end}
+    .chat-row.right{flex-direction:row-reverse}
+    .chat-avatar{width:40px;height:40px;border-radius:999px;flex:0 0 40px;object-fit:cover;background:#eee}
+    .chat-bubble{max-width:78%;padding:10px 12px;border-radius:14px;background:var(--bubble);position:relative;white-space:pre-wrap}
+    .chat-row.right .chat-bubble{background:var(--bubble2)}
+    .chat-name{font-size:12px;color:var(--muted);margin:0 0 2px 2px}
+    .chat-col{display:flex;flex-direction:column}
+
+    .hero{margin:14px 0}
+    .hero img{width:100%;height:auto;border-radius:12px;display:block;border:1px solid #eee}
   </style>
 </head>
 <body>
