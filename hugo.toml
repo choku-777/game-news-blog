@@ -1,0 +1,14 @@
+baseURL = "https://choku6840.github.io/game-news-blog/"
+languageCode = "ja"
+title = "ゲームニュースまとめ"
+
+[pagination]
+pagerSize = 20
+
+[params]
+  description = "Steam/Switch/PS/Xboxなどゲーム業界ニュースの自動まとめ"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true

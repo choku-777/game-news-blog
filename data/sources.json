@@ -1,0 +1,21 @@
+{
+  "lookbackHours": 12,
+  "maxItems": 10,
+  "sources": [
+    {
+      "name": "AUTOMATON",
+      "type": "rss",
+      "url": "https://automaton-media.com/feed/"
+    },
+    {
+      "name": "Game*Spark",
+      "type": "rss",
+      "url": "https://www.gamespark.jp/rss/index.rdf"
+    },
+    {
+      "name": "ファミ通（保留）",
+      "type": "rss",
+      "url": "https://example.invalid/famitsu-feed"
+    }
+  ]
+}

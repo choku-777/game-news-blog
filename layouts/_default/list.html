@@ -1,0 +1,11 @@
+{{ define "main" }}
+  <h1>最新記事</h1>
+  <ul class="postlist">
+    {{ range .Pages.ByDate.Reverse }}
+      <li>
+        <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+        <div class="meta">{{ .Date.Format "2006-01-02 15:04" }}</div>
+      </li>
+    {{ end }}
+  </ul>
+{{ end }}
