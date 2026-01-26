@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Parser from 'rss-parser';
+import { JSDOM } from 'jsdom';
+import { Readability } from '@mozilla/readability';
 
 const ROOT = path.resolve(process.cwd());
 const sourcesPath = path.join(ROOT, 'data', 'sources.json');
@@ -12,12 +14,11 @@ const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
 state.seen ||= [];
 
 const parser = new Parser({
-  timeout: 15000,
+  timeout: 20000,
   customFields: {
     item: [
       ['dc:creator', 'creator'],
       ['content:encoded', 'contentEncoded'],
-      // media:content のurl属性を拾える場合がある
       ['media:content', 'mediaContent', { keepArray: true }],
       ['media:thumbnail', 'mediaThumbnail', { keepArray: true }]
     ]
@@ -59,25 +60,21 @@ function fmtJst(dt) {
   return `${y}-${m}-${d} ${hh}:${mm}`;
 }
 
+function pickUrlAttr(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return '';
+  const v = arr[0];
+  if (typeof v === 'string') return v;
+  if (v?.$?.url) return v.$.url;
+  if (v?.url) return v.url;
+  return '';
+}
+
 function pickImageFromParsedItem(item) {
-  // enclosure
   if (item?.enclosure?.url) return item.enclosure.url;
-
-  // media:thumbnail / media:content
-  const pickUrlAttr = (arr) => {
-    if (!Array.isArray(arr) || arr.length === 0) return '';
-    const v = arr[0];
-    if (typeof v === 'string') return v;
-    if (v?.$?.url) return v.$.url;
-    if (v?.url) return v.url;
-    return '';
-  };
-
   const t = pickUrlAttr(item.mediaThumbnail);
   if (t) return t;
   const c = pickUrlAttr(item.mediaContent);
   if (c) return c;
-
   return '';
 }
 
@@ -120,29 +117,154 @@ async function fetchItems() {
   return all.slice(0, sources.maxItems ?? 10);
 }
 
-function buildDialogueForItem(it) {
-  // 会話形式（LINEっぽく表示するのは Hugo shortcode + CSS）
+async function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+async function fetchHtml(url) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: {
+        'user-agent': 'game-news-blog-bot/1.0 (+https://choku-777.github.io/game-news-blog/; contact: choku)'
+      }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function extractOgImage(doc) {
+  const candidates = [
+    'meta[property="og:image"]',
+    'meta[name="og:image"]',
+    'meta[property="twitter:image"]',
+    'meta[name="twitter:image"]'
+  ];
+  for (const sel of candidates) {
+    const el = doc.querySelector(sel);
+    const c = el?.getAttribute('content');
+    if (c) return c;
+  }
+  return '';
+}
+
+function textFromReadability(html, url) {
+  const dom = new JSDOM(html, { url });
+  const doc = dom.window.document;
+  const ogImage = extractOgImage(doc);
+
+  const reader = new Readability(doc);
+  const article = reader.parse();
+  const text = (article?.textContent || '').trim();
+  return { text, ogImage: ogImage ? normUrl(ogImage) : '' };
+}
+
+function rewriteJa(s) {
+  // 露骨なコピペ感を下げるための超簡易リライト（LLMではない）
+  return (s || '')
+    .replace(/\s+/g, ' ')
+    .replace(/しました/g, 'した')
+    .replace(/しています/g, 'している')
+    .replace(/となりました/g, 'となった')
+    .replace(/という/g, 'との')
+    .replace(/発表していました/g, '発表していた')
+    .trim();
+}
+
+function make10LineSummary(text) {
+  // 「本文を読んだ上での要点」：長い引用を避け、短い自前フレーズに寄せる
+  const cleaned = (text || '')
+    .replace(/\r/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  const paras = cleaned.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
+
+  // 文を集める
+  const sents = [];
+  for (const p of paras) {
+    const chunk = p.replace(/\s+/g, ' ');
+    for (const s of chunk.split(/(?<=。|！|？)\s*/)) {
+      const t = s.trim();
+      if (t) sents.push(t);
+      if (sents.length >= 30) break;
+    }
+    if (sents.length >= 30) break;
+  }
+
+  const lines = [];
+  const templates = [
+    '概要：',
+    '背景：',
+    '状況：',
+    'ポイント：',
+    '注目：',
+    '補足：',
+    '影響：',
+    '今後：',
+    '関連：',
+    'まとめ：'
+  ];
+
+  for (let i = 0; i < Math.min(10, sents.length); i++) {
+    let t = rewriteJa(sents[i]);
+    // 長すぎる場合はカット（引用抑制）
+    if (t.length > 90) t = t.slice(0, 88) + '…';
+    lines.push(`${templates[i]}${t}`);
+  }
+
+  // 文が少ないときは段落から補完
+  while (lines.length < 10 && paras.length) {
+    let t = rewriteJa(paras[lines.length % paras.length]);
+    if (t.length > 90) t = t.slice(0, 88) + '…';
+    lines.push(`${templates[lines.length]}${t}`);
+  }
+
+  return lines.slice(0, 10);
+}
+
+async function enrichItem(it) {
+  // polite crawl
+  await sleep(1200);
+
+  try {
+    const html = await fetchHtml(it.link);
+    const { text, ogImage } = textFromReadability(html, it.link);
+
+    const summaryLines = text ? make10LineSummary(text) : [];
+
+    // サムネ：RSS > OG:image > none
+    const image = it.image || ogImage || '';
+
+    return { ...it, image: image ? normUrl(image) : '', summaryLines, extractedTextChars: text.length };
+  } catch (e) {
+    console.warn(`WARN: failed to fetch/parse article for summary (${it.link}): ${e?.message || e}`);
+    return { ...it, summaryLines: [], extractedTextChars: 0 };
+  }
+}
+
+function buildChatFeelings(it) {
   const editor = { name: '編集者', avatar: '/game-news-blog/avatars/editor.svg' };
   const gamer = { name: 'ゲーマー', avatar: '/game-news-blog/avatars/gamer.svg' };
 
-  // “中”レベル（800〜1200字くらいを狙う）：
-  // ここでは「背景/影響/チェック項目/次アクション」を厚めにして、コピペなしで掘り下げ感を作る。
-  const jst = fmtJst(now);
+  const take = (it.summaryLines || []).slice(0, 3).join('\n');
+  const editorMsg = take
+    ? `要約読む限り、ポイントはこの辺だね：\n${take}\n\n個人的には「どの層に効くニュースか」と「次の公式発表が何か」が気になる。`
+    : '今回は本文要約が取れなかった。出典リンクを見た上で、重要ポイントだけ拾っていこう。';
 
-  const p1 = `今日は${jst}時点のニュースから1本。タイトルは「${it.title}」。まず押さえるべきは“何が更新された（発表された）か”だね。`;
-  const p2 = `この手のニュースは、第一報だけだと情報が断片的なことが多い。だから「対象プラットフォーム」「時期（発売日/配信日）」「価格や提供形態」「ユーザーに直接影響する変更点（仕様/規約/対応言語/地域）」の4点を最優先で確認する。`;
-  const p3 = `もしアップデートやパッチの話なら、次に見るべきは「変更の範囲（新要素/調整/バグ修正）」「既存セーブへの影響」「不具合の既知情報」。発表/発売の話なら「対応機種」「予約/販売ページ」「PV」「開発元の追加コメント」が揃うかが重要。`;
-  const p4 = `あと個人的に大事なのは“誰が得するニュースか”を言語化すること。既存プレイヤー向け？新規向け？開発者向け？投資/業界向け？このラベルが付くと、読む側が迷わない。`;
-  const p5 = `一次情報が出ているかは、出典リンク先から公式ページやストア、プレスリリースへ辿れるかで判断できる。出典→公式の経路が見つかるなら、信頼度も上がるし、詳細も早い。`;
+  const gamerMsg = '自分の感想としては、実際にユーザー側の体験がどう変わるかが一番気になる。良いニュースなら期待値上げたいし、懸念点があるなら早めに知っておきたい。';
 
   return [
     '{{< chat >}}',
-    `{{< msg side="left" name="${editor.name}" avatar="${editor.avatar}" >}}${p1}{{< /msg >}}`,
-    `{{< msg side="right" name="${gamer.name}" avatar="${gamer.avatar}" >}}タイトルだけだとピンと来ない時ある。どこ見ればいい？{{< /msg >}}`,
-    `{{< msg side="left" name="${editor.name}" avatar="${editor.avatar}" >}}${p2}\n\n${p3}{{< /msg >}}`,
-    `{{< msg side="right" name="${gamer.name}" avatar="${gamer.avatar}" >}}なるほど。読むポイントが分かった。{{< /msg >}}`,
-    `{{< msg side="left" name="${editor.name}" avatar="${editor.avatar}" >}}${p4}\n\n${p5}\n\n出典リンクから公式へ辿れたら、そこが一番強い。{{< /msg >}}`,
-    `{{< msg side="right" name="${gamer.name}" avatar="${gamer.avatar}" >}}OK、リンク踏んで確認してくる！{{< /msg >}}`,
+    `{{< msg side="left" name="${editor.name}" avatar="${editor.avatar}" >}}${editorMsg}{{< /msg >}}`,
+    `{{< msg side="right" name="${gamer.name}" avatar="${gamer.avatar}" >}}${gamerMsg}{{< /msg >}}`,
+    `{{< msg side="left" name="${editor.name}" avatar="${editor.avatar}" >}}じゃあ、気になる人は出典リンクで全文チェックして、公式に飛べるならそこも追いかけよう。{{< /msg >}}`,
+    `{{< msg side="right" name="${gamer.name}" avatar="${gamer.avatar}" >}}了解。続報待ち案件ならウォッチ入れとく。{{< /msg >}}`,
     '{{< /chat >}}',
     ''
   ].join('\n');
@@ -158,8 +280,9 @@ function buildMarkdownForItem(it) {
     'tags: ["game-news"]',
     it.image ? `image: "${it.image}"` : '',
     '---',
+    '',
     ''
-  ].filter(Boolean).join('\n');
+  ].filter(v => v !== '').join('\n') + "\n";
 
   const meta = [
     `出典：**${it.source}**`,
@@ -168,23 +291,19 @@ function buildMarkdownForItem(it) {
     ''
   ].join('\n');
 
-  const summary = [
-    '## 3行サマリー',
-    '- まずは「何が起きたか」を掴む（詳細は出典へ）',
-    '- プラットフォーム/時期/価格/影響範囲をチェック',
-    '- 公式続報やストア情報が出ていれば一次情報を優先',
-    ''
-  ].join('\n');
+  const summary = (it.summaryLines && it.summaryLines.length)
+    ? ['## 要約（本文を読んだ上での抜粋/要点）', '', ...it.summaryLines.map(l => `- ${l}`), ''].join('\n')
+    : ['## 要約', '', '（本文要約の取得に失敗。出典リンクをご確認ください）', ''].join('\n');
 
-  const body = buildDialogueForItem(it);
+  const chat = ['## 感想チャット', '', buildChatFeelings(it)].join('\n');
 
   const footer = [
     '---',
-    '※本記事は自動生成の紹介記事です。詳細・正確な情報は必ず出典（リンク先）をご確認ください。',
+    '※本記事は自動生成の紹介記事です。引用は最小限にとどめ、詳細・正確な情報は必ず出典（リンク先）をご確認ください。',
     ''
   ].join('\n');
 
-  return { title, body: frontmatter + meta + summary + body + footer };
+  return { title, body: frontmatter + meta + summary + chat + footer };
 }
 
 function writePost(md, it) {
@@ -198,7 +317,7 @@ function writePost(md, it) {
 
 function saveState(items) {
   for (const it of items) state.seen.push(it.id);
-  state.seen = state.seen.slice(-2000);
+  state.seen = state.seen.slice(-4000);
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n', 'utf8');
 }
 
@@ -210,8 +329,9 @@ if (items.length === 0) {
 
 const written = [];
 for (const it of items) {
-  const md = buildMarkdownForItem(it);
-  const out = writePost(md, it);
+  const enriched = await enrichItem(it);
+  const md = buildMarkdownForItem(enriched);
+  const out = writePost(md, enriched);
   written.push(out);
 }
 
