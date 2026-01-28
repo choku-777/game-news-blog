@@ -5,9 +5,9 @@
   "maxSourcesPerCluster": 4,
   "sources": [
     {
-      "name": "Nintendo トピックス",
+      "name": "任天堂 (whatsnew)",
       "type": "rss",
-      "url": "https://www.nintendo.com/jp/topics/rss.xml",
+      "url": "https://www.nintendo.co.jp/news/whatsnew.xml",
       "weight": 3
     },
     {
