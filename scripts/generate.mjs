@@ -252,12 +252,13 @@ function buildChatFeelings(it) {
   const editor = { name: '編集者', avatar: '/game-news-blog/avatars/editor.svg' };
   const gamer = { name: 'ゲーマー', avatar: '/game-news-blog/avatars/gamer.svg' };
 
-  const take = (it.summaryLines || []).slice(0, 3).join('\n');
-  const editorMsg = take
-    ? `要約読む限り、ポイントはこの辺だね：\n${take}\n\n個人的には「どの層に効くニュースか」と「次の公式発表が何か」が気になる。`
-    : '今回は本文要約が取れなかった。出典リンクを見た上で、重要ポイントだけ拾っていこう。';
+  const take = (it.summaryLines || []).slice(0, 4);
+  const points = take.length
+    ? take.map(s => `- ${s}`).join('\n')
+    : '- （本文の抽出に失敗したので、細部は出典で確認してね）';
 
-  const gamerMsg = '自分の感想としては、実際にユーザー側の体験がどう変わるかが一番気になる。良いニュースなら期待値上げたいし、懸念点があるなら早めに知っておきたい。';
+  const editorMsg = `元記事の内容をざっと読んだ上で、ボクが気になった論点はこれ。\n${points}\n\nここから先は「どう捉えるか」を話そう。`;
+  const gamerMsg = 'ボクはまず「結局プレイヤー側の体験が何が変わるの？」って視点で見ちゃう。良い話なら期待したいし、地雷なら先に回避したい。で、このニュース、どこが一番デカい？';
 
   return [
     '{{< chat >}}',
@@ -284,26 +285,18 @@ function buildMarkdownForItem(it) {
     ''
   ].filter(v => v !== '').join('\n') + "\n";
 
-  const meta = [
-    `出典：**${it.source}**`,
-    '',
-    `- 元記事：${it.link}`,
-    ''
-  ].join('\n');
-
-  const summary = (it.summaryLines && it.summaryLines.length)
-    ? ['## 要約（本文を読んだ上での抜粋/要点）', '', ...it.summaryLines.map(l => `- ${l}`), ''].join('\n')
-    : ['## 要約', '', '（本文要約の取得に失敗。出典リンクをご確認ください）', ''].join('\n');
-
-  const chat = ['## 感想チャット', '', buildChatFeelings(it)].join('\n');
+  const chat = buildChatFeelings(it);
 
   const footer = [
     '---',
+    `出典：**${it.source}**`,
+    `元記事：${it.link}`,
+    '',
     '※本記事は自動生成の紹介記事です。引用は最小限にとどめ、詳細・正確な情報は必ず出典（リンク先）をご確認ください。',
     ''
   ].join('\n');
 
-  return { title, body: frontmatter + meta + summary + chat + footer };
+  return { title, body: frontmatter + chat + footer };
 }
 
 function writePost(md, it) {
