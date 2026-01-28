@@ -19,10 +19,12 @@ permissions:
 
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
+    # Avoid infinite loop when this workflow commits and pushes
+    if: ${{ github.event_name != 'push' || github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -47,9 +49,21 @@ jobs:
           if [[ -n "$(git status --porcelain)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            # Rebase on latest remote to avoid non-fast-forward failures
+            git fetch origin main
+            git pull --rebase origin main
+
             git add content data
             git commit -m "chore: auto update" || true
-            git push
+
+            # Push with small retry (network / race)
+            for i in 1 2 3; do
+              git push && break
+              echo "push failed; retry $i";
+              sleep 2;
+              git pull --rebase origin main || true
+            done
           else
             echo "No changes to commit."
           fi
