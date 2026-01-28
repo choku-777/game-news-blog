@@ -301,9 +301,22 @@ function uniqBy(items, keyFn) {
   return out;
 }
 
+function pickFace(name, text) {
+  const t = (text || '').toLowerCase();
+  // super simple heuristics
+  let mood = 'normal';
+  if (/(悲報|延期|中止|終了|下方|改悪|損|泣|つら|残念)/.test(text)) mood = 'sad';
+  if (/(炎上|怒|許|最悪|やばい|詐欺)/.test(text)) mood = 'angry';
+  if (/(！|\!|うお|きた|最高|神|うれ|勝ち|爆アツ|熱い)/.test(text)) mood = 'happy';
+  if (/(え|まて|待って|！？|\?\!|\!\?|\?)/.test(text)) mood = 'surprised';
+
+  const base = name === 'ルカ' ? 'ruka' : 'tsugumi';
+  return `/avatars/${base}_${mood}.png`;
+}
+
 function buildChat(cluster, enrichedById) {
-  const editor = { name: '編集者', avatar: '/avatars/editor.svg' };
-  const gamer = { name: 'ゲーマー', avatar: '/avatars/gamer.svg' };
+  const tsugumi = { name: 'ツグミ', avatar: '/avatars/tsugumi_normal.png' };
+  const ruka = { name: 'ルカ', avatar: '/avatars/ruka_normal.png' };
 
   const uniqSources = uniqBy(cluster.items, x => x.source).map(x => x.source);
   const representative = pickRepresentativeTitle(cluster);
@@ -328,17 +341,23 @@ function buildChat(cluster, enrichedById) {
     ? mergedPoints.slice(0, 10).map(s => `- ${s}`).join('\n')
     : '- （本文抽出に失敗したソースが多い。出典リンクで確認してね）';
 
-  const editor1 = `${head}\n\nボクのメモ（統合ポイント）はこれ：\n${points}`;
-  const gamer1 = 'なるほど、情報が重なってるのは強いね。で、結局「ユーザー体験」「業界への影響」「次の公式発表」どれが一番デカい？';
-  const editor2 = 'ボクの見立てだと、まず「事実として確定してる所」と「推測/解釈」を分けるのがコツ。確定＝公式/一次情報。解釈＝各メディアの見方。ここを分けて追うとミスりにくい。';
-  const gamer2 = 'OK。じゃあ次は公式（ストア/プレス/開発者コメント）まで辿って、確定情報が増えたらまた更新しよう。';
+  const t1 = `${head}\n\n一次情報寄りのポイントを拾って、ボクが整えるね。\n${points}`;
+  const r1 = 'うおっ、これ熱い。結局「買い？炎上？財布HPは？」どれ！？';
+  const t2 = '落ち着け。確定してるのはどこまでか、条件（機種/地域/日時/価格）をまず分けよう。';
+  const r2 = 'はい、これは【推測】です！でもさ、雰囲気的にヤバそうじゃない？（ソース：俺の雰囲気）';
+
+  // pick avatars by message content
+  const t1a = pickFace('ツグミ', t1);
+  const r1a = pickFace('ルカ', r1);
+  const t2a = pickFace('ツグミ', t2);
+  const r2a = pickFace('ルカ', r2);
 
   return [
     '{{< chat >}}',
-    `{{< msg side="left" name="${editor.name}" avatar="${editor.avatar}" >}}${editor1}{{< /msg >}}`,
-    `{{< msg side="right" name="${gamer.name}" avatar="${gamer.avatar}" >}}${gamer1}{{< /msg >}}`,
-    `{{< msg side="left" name="${editor.name}" avatar="${editor.avatar}" >}}${editor2}{{< /msg >}}`,
-    `{{< msg side="right" name="${gamer.name}" avatar="${gamer.avatar}" >}}${gamer2}{{< /msg >}}`,
+    `{{< msg side="left" name="${tsugumi.name}" avatar="${t1a}" >}}${t1}{{< /msg >}}`,
+    `{{< msg side="right" name="${ruka.name}" avatar="${r1a}" >}}${r1}{{< /msg >}}`,
+    `{{< msg side="left" name="${tsugumi.name}" avatar="${t2a}" >}}${t2}\n\n結論：一次ソースを確認してから動こう。{{< /msg >}}`,
+    `{{< msg side="right" name="${ruka.name}" avatar="${r2a}" >}}${r2}\n\n財布HP：■■□□□（減）{{< /msg >}}`,
     '{{< /chat >}}',
     ''
   ].join('\n');
