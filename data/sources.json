@@ -1,16 +1,50 @@
 {
   "lookbackHours": 12,
-  "maxItems": 10,
+  "maxItems": 60,
+  "maxPostsPerRun": 5,
+  "maxSourcesPerCluster": 4,
   "sources": [
+    {
+      "name": "Nintendo トピックス",
+      "type": "rss",
+      "url": "https://www.nintendo.com/jp/topics/rss.xml",
+      "weight": 3
+    },
+    {
+      "name": "PlayStation.Blog (JP)",
+      "type": "rss",
+      "url": "https://blog.ja.playstation.com/feed/",
+      "weight": 3
+    },
+    {
+      "name": "Xbox Wire",
+      "type": "rss",
+      "url": "https://news.xbox.com/en-us/feed/",
+      "weight": 3
+    },
+    {
+      "name": "Steam News",
+      "type": "rss",
+      "url": "https://store.steampowered.com/feeds/news.xml",
+      "weight": 2
+    },
+    {
+      "name": "Gematsu",
+      "type": "rss",
+      "url": "https://www.gematsu.com/feed",
+      "weight": 1
+    },
     {
       "name": "AUTOMATON",
       "type": "rss",
-      "url": "https://automaton-media.com/feed/"
+      "url": "https://automaton-media.com/feed/",
+      "weight": 1
     },
     {
       "name": "Game*Spark",
       "type": "rss",
-      "url": "https://www.gamespark.jp/rss/index.rdf"
+      "url": "https://www.gamespark.jp/rss/index.rdf",
+      "weight": 1
     }
   ]
 }

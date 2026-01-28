@@ -78,6 +78,11 @@ function pickImageFromParsedItem(item) {
   return '';
 }
 
+function weightForSource(srcName) {
+  const src = (sources.sources || []).find(s => s.name === srcName);
+  return src?.weight ?? 1;
+}
+
 async function fetchItems() {
   const all = [];
 
@@ -104,6 +109,7 @@ async function fetchItems() {
 
       all.push({
         source: src.name,
+        weight: src.weight ?? 1,
         title: item.title?.trim() || '(no title)',
         link,
         id,
@@ -114,7 +120,7 @@ async function fetchItems() {
   }
 
   all.sort((a, b) => b.date - a.date);
-  return all.slice(0, sources.maxItems ?? 10);
+  return all.slice(0, sources.maxItems ?? 60);
 }
 
 async function sleep(ms) {
@@ -123,12 +129,12 @@ async function sleep(ms) {
 
 async function fetchHtml(url) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 20000);
+  const t = setTimeout(() => ctrl.abort(), 8000);
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
       headers: {
-        'user-agent': 'game-news-blog-bot/1.0 (+https://choku-777.github.io/game-news-blog/; contact: choku)'
+        'user-agent': 'game-news-blog-bot/1.0 (+https://gamenews.ny-service.jp/; contact: choku)'
       }
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -165,7 +171,6 @@ function textFromReadability(html, url) {
 }
 
 function rewriteJa(s) {
-  // 露骨なコピペ感を下げるための超簡易リライト（LLMではない）
   return (s || '')
     .replace(/\s+/g, ' ')
     .replace(/しました/g, 'した')
@@ -176,133 +181,209 @@ function rewriteJa(s) {
     .trim();
 }
 
-function make10LineSummary(text) {
-  // 「本文を読んだ上での要点」：長い引用を避け、短い自前フレーズに寄せる
-  const cleaned = (text || '')
-    .replace(/\r/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-
+function makeKeyPoints(text, maxLines = 8) {
+  const cleaned = (text || '').replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim();
   const paras = cleaned.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
 
-  // 文を集める
   const sents = [];
   for (const p of paras) {
     const chunk = p.replace(/\s+/g, ' ');
     for (const s of chunk.split(/(?<=。|！|？)\s*/)) {
       const t = s.trim();
       if (t) sents.push(t);
-      if (sents.length >= 30) break;
+      if (sents.length >= 40) break;
     }
-    if (sents.length >= 30) break;
+    if (sents.length >= 40) break;
   }
 
   const lines = [];
-  const templates = [
-    '概要：',
-    '背景：',
-    '状況：',
-    'ポイント：',
-    '注目：',
-    '補足：',
-    '影響：',
-    '今後：',
-    '関連：',
-    'まとめ：'
-  ];
-
-  for (let i = 0; i < Math.min(10, sents.length); i++) {
+  for (let i = 0; i < Math.min(maxLines, sents.length); i++) {
     let t = rewriteJa(sents[i]);
-    // 長すぎる場合はカット（引用抑制）
-    if (t.length > 90) t = t.slice(0, 88) + '…';
-    lines.push(`${templates[i]}${t}`);
+    if (t.length > 100) t = t.slice(0, 98) + '…';
+    lines.push(t);
   }
-
-  // 文が少ないときは段落から補完
-  while (lines.length < 10 && paras.length) {
-    let t = rewriteJa(paras[lines.length % paras.length]);
-    if (t.length > 90) t = t.slice(0, 88) + '…';
-    lines.push(`${templates[lines.length]}${t}`);
-  }
-
-  return lines.slice(0, 10);
+  return lines;
 }
 
-async function enrichItem(it) {
-  // polite crawl
-  await sleep(1200);
-
+async function enrichUrl(it) {
+  await sleep(200);
+  const label = `[enrich] ${it.source} ${it.link}`;
+  console.log(label);
   try {
     const html = await fetchHtml(it.link);
     const { text, ogImage } = textFromReadability(html, it.link);
 
-    const summaryLines = text ? make10LineSummary(text) : [];
+    const keyPoints = text ? makeKeyPoints(text, 10) : [];
 
-    // サムネ：RSS > OG:image > none
     const image = it.image || ogImage || '';
 
-    return { ...it, image: image ? normUrl(image) : '', summaryLines, extractedTextChars: text.length };
+    return {
+      ...it,
+      image: image ? normUrl(image) : '',
+      keyPoints,
+      extractedTextChars: text.length
+    };
   } catch (e) {
-    console.warn(`WARN: failed to fetch/parse article for summary (${it.link}): ${e?.message || e}`);
-    return { ...it, summaryLines: [], extractedTextChars: 0 };
+    console.warn(`WARN: failed to fetch/parse article (${it.link}): ${e?.message || e}`);
+    return { ...it, keyPoints: [], extractedTextChars: 0 };
   }
 }
 
-function buildChatFeelings(it) {
-  const editor = { name: '編集者', avatar: '/game-news-blog/avatars/editor.svg' };
-  const gamer = { name: 'ゲーマー', avatar: '/game-news-blog/avatars/gamer.svg' };
+function tokenizeTitle(s) {
+  // 超軽量：英数字・日本語をざっくりトークン化
+  return (s || '')
+    .toLowerCase()
+    .replace(/[“”"'’]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter(t => t.length >= 2)
+    .slice(0, 40);
+}
 
-  const take = (it.summaryLines || []).slice(0, 4);
-  const points = take.length
-    ? take.map(s => `- ${s}`).join('\n')
-    : '- （本文の抽出に失敗したので、細部は出典で確認してね）';
+function jaccard(a, b) {
+  const A = new Set(a);
+  const B = new Set(b);
+  let inter = 0;
+  for (const x of A) if (B.has(x)) inter++;
+  const union = A.size + B.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
 
-  const editorMsg = `元記事の内容をざっと読んだ上で、ボクが気になった論点はこれ。\n${points}\n\nここから先は「どう捉えるか」を話そう。`;
-  const gamerMsg = 'ボクはまず「結局プレイヤー側の体験が何が変わるの？」って視点で見ちゃう。良い話なら期待したいし、地雷なら先に回避したい。で、このニュース、どこが一番デカい？';
+function clusterItems(items) {
+  const clusters = [];
+  for (const it of items) {
+    const tokens = tokenizeTitle(it.title);
+    let placed = false;
+    for (const c of clusters) {
+      const sim = jaccard(tokens, c.tokens);
+      if (sim >= 0.35) {
+        c.items.push(it);
+        // tokens更新（ざっくり合成）
+        c.tokens = Array.from(new Set([...c.tokens, ...tokens])).slice(0, 80);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) clusters.push({ tokens, items: [it] });
+  }
+  return clusters;
+}
+
+function scoreCluster(cluster) {
+  const uniqSources = new Set(cluster.items.map(i => i.source));
+  const sourceCount = uniqSources.size;
+  const weightSum = Array.from(uniqSources).reduce((sum, s) => sum + weightForSource(s), 0);
+  const recency = Math.max(...cluster.items.map(i => i.date.getTime()));
+  // 被り数を最重視 + 公式加点 + 新しさ
+  return (sourceCount * 10) + (weightSum * 3) + (recency / 1e13);
+}
+
+function pickRepresentativeTitle(cluster) {
+  // 一番重いソース（公式優先）→新しい順
+  const sorted = [...cluster.items].sort((a, b) => {
+    const dw = (weightForSource(b.source) - weightForSource(a.source));
+    if (dw !== 0) return dw;
+    return b.date - a.date;
+  });
+  return sorted[0]?.title || 'ゲームニュース';
+}
+
+function uniqBy(items, keyFn) {
+  const seen = new Set();
+  const out = [];
+  for (const it of items) {
+    const k = keyFn(it);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(it);
+  }
+  return out;
+}
+
+function buildChat(cluster, enrichedById) {
+  const editor = { name: '編集者', avatar: '/avatars/editor.svg' };
+  const gamer = { name: 'ゲーマー', avatar: '/avatars/gamer.svg' };
+
+  const uniqSources = uniqBy(cluster.items, x => x.source).map(x => x.source);
+  const representative = pickRepresentativeTitle(cluster);
+
+  // 各ソースのポイントを合成
+  const mergedPoints = [];
+  const picked = cluster.items
+    .sort((a, b) => (weightForSource(b.source) - weightForSource(a.source)) || (b.date - a.date))
+    .slice(0, sources.maxSourcesPerCluster ?? 4);
+
+  for (const it of picked) {
+    const e = enrichedById.get(it.id);
+    const pts = (e?.keyPoints || []).slice(0, 3);
+    if (pts.length) {
+      mergedPoints.push(`【${it.source}】${pts[0]}`);
+      for (const p of pts.slice(1)) mergedPoints.push(`・${p}`);
+    }
+  }
+
+  const head = `今日の重要トピック：\n「${representative}」\n\n複数サイト（${uniqSources.length}）で扱われてるから、重要度高め。`;
+  const points = mergedPoints.length
+    ? mergedPoints.slice(0, 10).map(s => `- ${s}`).join('\n')
+    : '- （本文抽出に失敗したソースが多い。出典リンクで確認してね）';
+
+  const editor1 = `${head}\n\nボクのメモ（統合ポイント）はこれ：\n${points}`;
+  const gamer1 = 'なるほど、情報が重なってるのは強いね。で、結局「ユーザー体験」「業界への影響」「次の公式発表」どれが一番デカい？';
+  const editor2 = 'ボクの見立てだと、まず「事実として確定してる所」と「推測/解釈」を分けるのがコツ。確定＝公式/一次情報。解釈＝各メディアの見方。ここを分けて追うとミスりにくい。';
+  const gamer2 = 'OK。じゃあ次は公式（ストア/プレス/開発者コメント）まで辿って、確定情報が増えたらまた更新しよう。';
 
   return [
     '{{< chat >}}',
-    `{{< msg side="left" name="${editor.name}" avatar="${editor.avatar}" >}}${editorMsg}{{< /msg >}}`,
-    `{{< msg side="right" name="${gamer.name}" avatar="${gamer.avatar}" >}}${gamerMsg}{{< /msg >}}`,
-    `{{< msg side="left" name="${editor.name}" avatar="${editor.avatar}" >}}じゃあ、気になる人は出典リンクで全文チェックして、公式に飛べるならそこも追いかけよう。{{< /msg >}}`,
-    `{{< msg side="right" name="${gamer.name}" avatar="${gamer.avatar}" >}}了解。続報待ち案件ならウォッチ入れとく。{{< /msg >}}`,
+    `{{< msg side="left" name="${editor.name}" avatar="${editor.avatar}" >}}${editor1}{{< /msg >}}`,
+    `{{< msg side="right" name="${gamer.name}" avatar="${gamer.avatar}" >}}${gamer1}{{< /msg >}}`,
+    `{{< msg side="left" name="${editor.name}" avatar="${editor.avatar}" >}}${editor2}{{< /msg >}}`,
+    `{{< msg side="right" name="${gamer.name}" avatar="${gamer.avatar}" >}}${gamer2}{{< /msg >}}`,
     '{{< /chat >}}',
     ''
   ].join('\n');
 }
 
-function buildMarkdownForItem(it) {
-  const title = it.title;
+function buildMarkdown(cluster, enrichedById) {
+  const title = pickRepresentativeTitle(cluster);
+  const newest = new Date(Math.max(...cluster.items.map(i => i.date.getTime())));
+  const image = cluster.items.find(i => enrichedById.get(i.id)?.image)?.image || '';
 
   const frontmatter = [
     '---',
     `title: "${title.replace(/\"/g, '”')}"`,
-    `date: ${it.date.toISOString()}`,
+    `date: ${newest.toISOString()}`,
     'tags: ["game-news"]',
-    it.image ? `image: "${it.image}"` : '',
+    image ? `image: "${image}"` : '',
     '---',
     '',
     ''
   ].filter(v => v !== '').join('\n') + "\n";
 
-  const chat = buildChatFeelings(it);
+  const chat = buildChat(cluster, enrichedById);
+
+  // 出典まとめ（最後）
+  const sourcesList = uniqBy(cluster.items, x => x.link)
+    .sort((a, b) => (weightForSource(b.source) - weightForSource(a.source)) || (b.date - a.date))
+    .map(it => `- **${it.source}**: ${it.link}`)
+    .join('\n');
 
   const footer = [
     '---',
-    `出典：**${it.source}**`,
-    `元記事：${it.link}`,
+    '出典/関連リンク：',
+    sourcesList,
     '',
     '※本記事は自動生成の紹介記事です。引用は最小限にとどめ、詳細・正確な情報は必ず出典（リンク先）をご確認ください。',
     ''
   ].join('\n');
 
-  return { title, body: frontmatter + chat + footer };
+  return { title, body: frontmatter + chat + footer, date: newest };
 }
 
-function writePost(md, it) {
+function writePost(md) {
   fs.mkdirSync(postsDir, { recursive: true });
-  const stamp = it.date.toISOString().replace(/[:]/g, '').slice(0, 15);
-  const filename = `${stamp}-${safeSlug(it.source)}-${safeSlug(md.title)}.md`;
+  const stamp = md.date.toISOString().replace(/[:]/g, '').slice(0, 15);
+  const filename = `${stamp}-${safeSlug(md.title)}.md`;
   const outPath = path.join(postsDir, filename);
   fs.writeFileSync(outPath, md.body, 'utf8');
   return outPath;
@@ -310,7 +391,7 @@ function writePost(md, it) {
 
 function saveState(items) {
   for (const it of items) state.seen.push(it.id);
-  state.seen = state.seen.slice(-4000);
+  state.seen = state.seen.slice(-8000);
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n', 'utf8');
 }
 
@@ -320,13 +401,39 @@ if (items.length === 0) {
   process.exit(0);
 }
 
+// 1) cluster
+const clusters = clusterItems(items);
+
+// 2) score & select top clusters
+clusters.sort((a, b) => scoreCluster(b) - scoreCluster(a));
+const selected = clusters.slice(0, sources.maxPostsPerRun ?? 5);
+
+// 3) enrich only top N sources per cluster (avoid long runs)
+const toFetch = [];
+for (const c of selected) {
+  const picked = [...c.items]
+    .sort((a, b) => (weightForSource(b.source) - weightForSource(a.source)) || (b.date - a.date))
+    .slice(0, sources.maxSourcesPerCluster ?? 4);
+  toFetch.push(...picked);
+}
+const neededItems = uniqBy(toFetch, it => it.id)
+  .slice(0, (sources.maxPostsPerRun ?? 5) * (sources.maxSourcesPerCluster ?? 4));
+
+const enrichedById = new Map();
+for (const it of neededItems) {
+  const enriched = await enrichUrl(it);
+  enrichedById.set(it.id, enriched);
+}
+
+// 4) write posts (one cluster = one post)
 const written = [];
-for (const it of items) {
-  const enriched = await enrichItem(it);
-  const md = buildMarkdownForItem(enriched);
-  const out = writePost(md, enriched);
+for (const c of selected) {
+  const md = buildMarkdown(c, enrichedById);
+  const out = writePost(md);
   written.push(out);
 }
 
-saveState(items);
+// state: mark *all* items in selected clusters as seen (so we don't repost)
+const seenAll = uniqBy(selected.flatMap(c => c.items), it => it.id);
+saveState(seenAll);
 for (const out of written) console.log('Wrote:', path.relative(ROOT, out));
