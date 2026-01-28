@@ -52,7 +52,7 @@ jobs:
 
             # Rebase on latest remote to avoid non-fast-forward failures
             git fetch origin main
-            git pull --rebase origin main
+            git pull --rebase --autostash origin main
 
             git add content data
             git commit -m "chore: auto update" || true
@@ -62,7 +62,7 @@ jobs:
               git push && break
               echo "push failed; retry $i";
               sleep 2;
-              git pull --rebase origin main || true
+              git pull --rebase --autostash origin main || true
             done
           else
             echo "No changes to commit."
