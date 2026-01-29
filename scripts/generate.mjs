@@ -354,10 +354,10 @@ function buildChat(cluster, enrichedById) {
 
   return [
     '{{< chat >}}',
-    `{{< msg side="left" name="${tsugumi.name}" avatar="${t1a}" >}}${t1}{{< /msg >}}`,
-    `{{< msg side="right" name="${ruka.name}" avatar="${r1a}" >}}${r1}{{< /msg >}}`,
-    `{{< msg side="left" name="${tsugumi.name}" avatar="${t2a}" >}}${t2}\n\n結論：一次ソースを確認してから動こう。{{< /msg >}}`,
-    `{{< msg side="right" name="${ruka.name}" avatar="${r2a}" >}}${r2}\n\n財布HP：■■□□□（減）{{< /msg >}}`,
+    `{{< msg side="left" name="${ruka.name}" avatar="${r1a}" >}}${r1}{{< /msg >}}`,
+    `{{< msg side="right" name="${tsugumi.name}" avatar="${t1a}" >}}${t1}{{< /msg >}}`,
+    `{{< msg side="left" name="${ruka.name}" avatar="${r2a}" >}}${r2}\n\n財布HP：■■□□□（減）{{< /msg >}}`,
+    `{{< msg side="right" name="${tsugumi.name}" avatar="${t2a}" >}}${t2}\n\n結論：一次ソースを確認してから動こう。{{< /msg >}}`,
     '{{< /chat >}}',
     ''
   ].join('\n');
