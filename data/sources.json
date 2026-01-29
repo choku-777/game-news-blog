@@ -45,6 +45,12 @@
       "type": "rss",
       "url": "https://www.gamespark.jp/rss/index.rdf",
       "weight": 1
+    },
+    {
+      "name": "電ファミニコゲーマー",
+      "type": "rss",
+      "url": "https://news.denfaminicogamer.jp/feed",
+      "weight": 1
     }
   ]
 }
