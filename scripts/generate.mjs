@@ -314,9 +314,29 @@ function pickFace(name, text) {
   return `/avatars/${base}_${mood}.png`;
 }
 
+function clampLuka(text) {
+  // ルカは勢い重視：長くなりすぎたら短縮（だいたい2行分）
+  const t = (text || '').replace(/\s+/g, ' ').trim();
+  return t.length > 70 ? t.slice(0, 68) + '…' : t;
+}
+
+function chunkTsugumi(text) {
+  // ツグミは長文OK。章ごとに吹き出し分割。
+  const parts = (text || '').split(/\n\n+/).map(s => s.trim()).filter(Boolean);
+  // 1吹き出しが長すぎる場合は更に分割
+  const out = [];
+  for (const p of parts) {
+    if (p.length <= 700) out.push(p);
+    else {
+      for (let i = 0; i < p.length; i += 650) out.push(p.slice(i, i + 650));
+    }
+  }
+  return out;
+}
+
 function buildChat(cluster, enrichedById) {
-  const tsugumi = { name: 'ツグミ', avatar: '/avatars/tsugumi_normal.png' };
-  const ruka = { name: 'ルカ', avatar: '/avatars/ruka_normal.png' };
+  const tsugumi = { name: 'ツグミ' };
+  const ruka = { name: 'ルカ' };
 
   const uniqSources = uniqBy(cluster.items, x => x.source).map(x => x.source);
   const representative = pickRepresentativeTitle(cluster);
@@ -343,46 +363,58 @@ function buildChat(cluster, enrichedById) {
 
   const t_facts = `${head}\n\n【事実ライン（複数ソース統合）】\n${points}`;
 
-  const r_heat = 'え、これ業界的にデカいやつ？ どこが一番ヤバい（or旨い）ポイント？';
-
-  const t_hyp = [
-    '【深掘り（推測）】',
-    '- なぜ今出た？：スケジュール都合（決算/イベント/大型アプデ前）か、競合対策の可能性。',
-    '- 勝者/敗者：ユーザー（価格/体験）・開発/パブ（収益/工数）・プラットフォーム（囲い込み）で整理すると見えやすい。',
-    '- 次に起きそう：①追加発表 ②仕様/価格の補足 ③反発（炎上/不具合）対応、のどれかが来る確率が高い。',
+  const t_analysis = [
+    '【深掘り：何が本質？】',
+    'ここで重要なのは、ニュースの中心が「発表」なのか「実装」なのか。発表段階は条件が後出しで変わる余地が大きい。一方、配信/販売開始・規約改定など“実装”なら、今日から実害/実益が出る。',
+    '',
+    '【深掘り：なぜ今？（推測）】',
+    'タイミングはだいたい3系統。①イベント/大型アプデ前の期待値づくり、②決算/投資家向けの材料、③競合の動きへのカウンター。単独より複合していることが多い。',
+    '',
+    '【深掘り：勝者/敗者（推測）】',
+    'ユーザーは「価格/体験/待ち時間」が改善するなら勝ち。逆に“条件が複雑化”すると損。開発/パブは収益導線が太くなるなら勝ちだが、工数やサポートコスト増で負けることもある。プラットフォームは囲い込みや決済が強くなるほど勝ち。',
+    '',
+    '【深掘り：リスク（読者の財布と時間）】',
+    '事故の大半は「条件落ち」。地域限定、期間限定、対応機種、既存購入者の扱い、セーブ互換、既知不具合。ここが曖昧な時は“様子見”が合理的。',
+    '',
+    '【深掘り：次に起きそうな展開（推測）】',
+    '1) 公式がFAQ/追記で条件を固める（判断材料が増える）\n2) 反応が強くて調整・撤回が入る（炎上/不具合対応）\n3) 続報がなく沈黙（噂だけ先行）\nこの3つを想定して、観測点を決めると振り回されにくい。',
     '※ここは【推測】。断定はしない。'
   ].join('\n');
 
-  const r_action = 'OK、じゃあ「今買いか／待ちか」「注意点（地域/機種/期限/課金）」を結論でくれ！';
-
-  const t_close = [
-    '結論：いまの時点では「様子見」が安全（追加情報で判断が変わる可能性が高い）',
-    '対象：どのユーザー層が影響を受けるか（新規/既存/プラットフォーム別）',
+  const t_decision = [
+    '【結論（ツグミの暫定）】',
+    '結論：現時点は「様子見」寄り（追加情報で判断が変わる可能性が高い）',
+    '対象：誰が得/損するかを、ユーザー/開発/プラットフォームで分けて見る',
     '次の観測点：公式ページ・ストア表記・パッチノート・FAQ（数字/日付/対応機種が出たら更新）',
-    '注意：価格/地域/期間/対応機種の“条件落ち”が一番の事故ポイント'
+    '注意：価格/地域/期間/対応機種/既存購入者の扱い/互換・既知不具合'
   ].join('\n');
 
-  const r_tag = 'はい、これは【推測】です！ でも気持ちは先に盛り上がる！（情緒アプデ）';
+  // ルカ短文（テンポ担当）
+  const r0 = clampLuka('うおっ、これ業界的にデカい？まず何が起きたやつ？');
+  const r1 = clampLuka('はい、これは【推測】です！でも空気、熱くない？');
+  const r2 = clampLuka('で、結局“今やるべきこと”は？買い？待ち？');
+  const r3 = clampLuka('財布HP：■■□□□（減） 情緒だけ先にアプデ入る');
 
-  // avatars
-  const t1a = pickFace('ツグミ', t_facts);
-  const r1a = pickFace('ルカ', r_heat);
-  const t2a = pickFace('ツグミ', t_hyp);
-  const r2a = pickFace('ルカ', r_action);
-  const t3a = pickFace('ツグミ', t_close);
-  const r3a = pickFace('ルカ', r_tag);
+  const msgs = [];
+  msgs.push({ side: 'left', name: ruka.name, text: r0 });
+  msgs.push({ side: 'right', name: tsugumi.name, text: t_facts });
+  msgs.push({ side: 'left', name: ruka.name, text: r1 });
 
-  return [
-    '{{< chat >}}',
-    `{{< msg side="left" name="${ruka.name}" avatar="${r1a}" >}}${r_heat}{{< /msg >}}`,
-    `{{< msg side="right" name="${tsugumi.name}" avatar="${t1a}" >}}${t_facts}{{< /msg >}}`,
-    `{{< msg side="left" name="${ruka.name}" avatar="${r3a}" >}}${r_tag}{{< /msg >}}`,
-    `{{< msg side="right" name="${tsugumi.name}" avatar="${t2a}" >}}${t_hyp}{{< /msg >}}`,
-    `{{< msg side="left" name="${ruka.name}" avatar="${r2a}" >}}${r_action}{{< /msg >}}`,
-    `{{< msg side="right" name="${tsugumi.name}" avatar="${t3a}" >}}${t_close}{{< /msg >}}`,
-    '{{< /chat >}}',
-    ''
-  ].join('\n');
+  for (const chunk of chunkTsugumi(t_analysis)) {
+    msgs.push({ side: 'right', name: tsugumi.name, text: chunk });
+  }
+
+  msgs.push({ side: 'left', name: ruka.name, text: r2 });
+  msgs.push({ side: 'right', name: tsugumi.name, text: t_decision });
+  msgs.push({ side: 'left', name: ruka.name, text: r3 });
+
+  const out = ['{{< chat >}}'];
+  for (const m of msgs) {
+    const av = pickFace(m.name, m.text);
+    out.push(`{{< msg side=\"${m.side}\" name=\"${m.name}\" avatar=\"${av}\" >}}${m.text}{{< /msg >}}`);
+  }
+  out.push('{{< /chat >}}', '');
+  return out.join('\\n');
 }
 
 function buildMarkdown(cluster, enrichedById) {
