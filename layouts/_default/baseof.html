@@ -26,9 +26,13 @@
 
     /* chat bubbles (LINE-ish) */
     .chat{margin:16px 0;display:flex;flex-direction:column;gap:10px}
-    .chat-row{display:flex;gap:10px;align-items:flex-end}
-    .chat-row.right{flex-direction:row-reverse}
+    .chat-row{display:flex;gap:8px;align-items:flex-end;justify-content:flex-start}
+    .chat-row.right{flex-direction:row-reverse;justify-content:flex-start}
+
+    .chat-ident{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto}
     .chat-avatar{width:56px;height:56px;border-radius:999px;flex:0 0 56px;object-fit:cover;background:#eee}
+    .chat-name{font-size:12px;color:var(--muted);line-height:1;margin:0}
+
     .chat-bubble{max-width:68%;padding:10px 12px;border-radius:14px;background:var(--bubble);position:relative;white-space:pre-wrap}
     .chat-row.right .chat-bubble{background:var(--bubble2)}
 
@@ -36,12 +40,11 @@
     .chat-bubble:before{content:"";position:absolute;bottom:10px;width:0;height:0;border:10px solid transparent}
     .chat-row:not(.right) .chat-bubble:before{left:-18px;border-right-color:var(--bubble)}
     .chat-row.right .chat-bubble:before{right:-18px;border-left-color:var(--bubble2)}
-    .chat-name{font-size:12px;color:var(--muted);margin:0 0 2px 2px}
+
     @media (max-width: 520px){
       .chat-avatar{width:44px;height:44px;flex-basis:44px}
       .chat-bubble{max-width:76%}
     }
-    .chat-col{display:flex;flex-direction:column}
 
     .hero{margin:14px 0}
     .hero img{width:100%;height:auto;border-radius:12px;display:block;border:1px solid #eee}
