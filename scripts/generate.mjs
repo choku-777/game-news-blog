@@ -341,23 +341,45 @@ function buildChat(cluster, enrichedById) {
     ? mergedPoints.slice(0, 10).map(s => `- ${s}`).join('\n')
     : '- （本文抽出に失敗したソースが多い。出典リンクで確認してね）';
 
-  const t1 = `${head}\n\n一次情報寄りのポイントを拾って、ボクが整えるね。\n${points}`;
-  const r1 = 'うおっ、これ熱い。結局「買い？炎上？財布HPは？」どれ！？';
-  const t2 = '落ち着け。確定してるのはどこまでか、条件（機種/地域/日時/価格）をまず分けよう。';
-  const r2 = 'はい、これは【推測】です！でもさ、雰囲気的にヤバそうじゃない？（ソース：俺の雰囲気）';
+  const t_facts = `${head}\n\n【事実ライン（複数ソース統合）】\n${points}`;
 
-  // pick avatars by message content
-  const t1a = pickFace('ツグミ', t1);
-  const r1a = pickFace('ルカ', r1);
-  const t2a = pickFace('ツグミ', t2);
-  const r2a = pickFace('ルカ', r2);
+  const r_heat = 'え、これ業界的にデカいやつ？ どこが一番ヤバい（or旨い）ポイント？';
+
+  const t_hyp = [
+    '【深掘り（推測）】',
+    '- なぜ今出た？：スケジュール都合（決算/イベント/大型アプデ前）か、競合対策の可能性。',
+    '- 勝者/敗者：ユーザー（価格/体験）・開発/パブ（収益/工数）・プラットフォーム（囲い込み）で整理すると見えやすい。',
+    '- 次に起きそう：①追加発表 ②仕様/価格の補足 ③反発（炎上/不具合）対応、のどれかが来る確率が高い。',
+    '※ここは【推測】。断定はしない。'
+  ].join('\n');
+
+  const r_action = 'OK、じゃあ「今買いか／待ちか」「注意点（地域/機種/期限/課金）」を結論でくれ！';
+
+  const t_close = [
+    '結論：いまの時点では「様子見」が安全（追加情報で判断が変わる可能性が高い）',
+    '対象：どのユーザー層が影響を受けるか（新規/既存/プラットフォーム別）',
+    '次の観測点：公式ページ・ストア表記・パッチノート・FAQ（数字/日付/対応機種が出たら更新）',
+    '注意：価格/地域/期間/対応機種の“条件落ち”が一番の事故ポイント'
+  ].join('\n');
+
+  const r_tag = 'はい、これは【推測】です！ でも気持ちは先に盛り上がる！（情緒アプデ）';
+
+  // avatars
+  const t1a = pickFace('ツグミ', t_facts);
+  const r1a = pickFace('ルカ', r_heat);
+  const t2a = pickFace('ツグミ', t_hyp);
+  const r2a = pickFace('ルカ', r_action);
+  const t3a = pickFace('ツグミ', t_close);
+  const r3a = pickFace('ルカ', r_tag);
 
   return [
     '{{< chat >}}',
-    `{{< msg side="left" name="${ruka.name}" avatar="${r1a}" >}}${r1}{{< /msg >}}`,
-    `{{< msg side="right" name="${tsugumi.name}" avatar="${t1a}" >}}${t1}{{< /msg >}}`,
-    `{{< msg side="left" name="${ruka.name}" avatar="${r2a}" >}}${r2}\n\n財布HP：■■□□□（減）{{< /msg >}}`,
-    `{{< msg side="right" name="${tsugumi.name}" avatar="${t2a}" >}}${t2}\n\n結論：一次ソースを確認してから動こう。{{< /msg >}}`,
+    `{{< msg side="left" name="${ruka.name}" avatar="${r1a}" >}}${r_heat}{{< /msg >}}`,
+    `{{< msg side="right" name="${tsugumi.name}" avatar="${t1a}" >}}${t_facts}{{< /msg >}}`,
+    `{{< msg side="left" name="${ruka.name}" avatar="${r3a}" >}}${r_tag}{{< /msg >}}`,
+    `{{< msg side="right" name="${tsugumi.name}" avatar="${t2a}" >}}${t_hyp}{{< /msg >}}`,
+    `{{< msg side="left" name="${ruka.name}" avatar="${r2a}" >}}${r_action}{{< /msg >}}`,
+    `{{< msg side="right" name="${tsugumi.name}" avatar="${t3a}" >}}${t_close}{{< /msg >}}`,
     '{{< /chat >}}',
     ''
   ].join('\n');
