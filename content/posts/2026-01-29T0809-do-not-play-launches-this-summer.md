@@ -1,0 +1,32 @@
+---
+title: "DO NOT PLAY launches this summer"
+date: 2026-01-29T08:09:24.000Z
+tags: ["game-news"]
+---
+{{< chat >}}
+{{< msg side="left" name="ルカ" avatar="/avatars/ruka_surprised.png" >}}え、これ業界的にデカいやつ？ どこが一番ヤバい（or旨い）ポイント？{{< /msg >}}
+{{< msg side="right" name="ツグミ" avatar="/avatars/tsugumi_normal.png" >}}今日の重要トピック：
+「DO NOT PLAY launches this summer」
+
+複数サイト（1）で扱われてるから、重要度高め。
+
+【事実ライン（複数ソース統合）】
+- 【Gematsu】PC
+- ・Horror adventure game gets a release window. Horror adventure game DO NOT PLAY will launch for PC …{{< /msg >}}
+{{< msg side="left" name="ルカ" avatar="/avatars/ruka_happy.png" >}}はい、これは【推測】です！ でも気持ちは先に盛り上がる！（情緒アプデ）{{< /msg >}}
+{{< msg side="right" name="ツグミ" avatar="/avatars/tsugumi_surprised.png" >}}【深掘り（推測）】
+- なぜ今出た？：スケジュール都合（決算/イベント/大型アプデ前）か、競合対策の可能性。
+- 勝者/敗者：ユーザー（価格/体験）・開発/パブ（収益/工数）・プラットフォーム（囲い込み）で整理すると見えやすい。
+- 次に起きそう：①追加発表 ②仕様/価格の補足 ③反発（炎上/不具合）対応、のどれかが来る確率が高い。
+※ここは【推測】。断定はしない。{{< /msg >}}
+{{< msg side="left" name="ルカ" avatar="/avatars/ruka_happy.png" >}}OK、じゃあ「今買いか／待ちか」「注意点（地域/機種/期限/課金）」を結論でくれ！{{< /msg >}}
+{{< msg side="right" name="ツグミ" avatar="/avatars/tsugumi_normal.png" >}}結論：いまの時点では「様子見」が安全（追加情報で判断が変わる可能性が高い）
+対象：どのユーザー層が影響を受けるか（新規/既存/プラットフォーム別）
+次の観測点：公式ページ・ストア表記・パッチノート・FAQ（数字/日付/対応機種が出たら更新）
+注意：価格/地域/期間/対応機種の“条件落ち”が一番の事故ポイント{{< /msg >}}
+{{< /chat >}}
+---
+出典/関連リンク：
+- **Gematsu**: https://www.gematsu.com/2026/01/do-not-play-launches-this-summer
+
+※本記事は自動生成の紹介記事です。引用は最小限にとどめ、詳細・正確な情報は必ず出典（リンク先）をご確認ください。
