@@ -14,8 +14,8 @@
   -->
 
   <style>
-    :root{--fg:#111;--muted:#666;--bg:#fff;--link:#0b57d0;--max:900px;--bubble:#f1f3f5;--bubble2:#dbeafe}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;color:var(--fg);background:var(--bg);line-height:1.7}
+    :root{--fg:#111;--muted:#666;--bg:#fff;--link:#0b57d0;--max:900px;--bubble:#f1f3f5;--bubble2:#dbeafe;--font:16px;--chat:15px}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;color:var(--fg);background:var(--bg);line-height:1.7;font-size:var(--font)}
     header,main,footer{max-width:var(--max);margin:0 auto;padding:16px}
     header{border-bottom:1px solid #eee}
     footer{border-top:1px solid #eee;color:var(--muted);font-size:14px}
@@ -33,7 +33,7 @@
     .chat-avatar{width:56px;height:56px;border-radius:999px;flex:0 0 56px;object-fit:cover;background:#eee}
     .chat-name{font-size:12px;color:var(--muted);line-height:1;margin:0}
 
-    .chat-bubble{max-width:68%;padding:10px 12px;border-radius:14px;background:var(--bubble);position:relative;white-space:pre-wrap}
+    .chat-bubble{max-width:68%;padding:10px 12px;border-radius:14px;background:var(--bubble);position:relative;white-space:pre-wrap;font-size:var(--chat);line-height:1.55}
     .chat-row.right .chat-bubble{background:var(--bubble2)}
 
     /* bubble tails */
@@ -42,6 +42,7 @@
     .chat-row.right .chat-bubble:before{right:-18px;border-left-color:var(--bubble2)}
 
     @media (max-width: 520px){
+      :root{--font:15px;--chat:14px}
       .chat-avatar{width:44px;height:44px;flex-basis:44px}
       .chat-bubble{max-width:76%}
     }
