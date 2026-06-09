@@ -1,0 +1,56 @@
+[
+  {
+    "name": "Game*Spark",
+    "url": "https://www.gamespark.jp/rss/index.rdf",
+    "lang": "ja",
+    "category": "国内"
+  },
+  {
+    "name": "AUTOMATON",
+    "url": "https://automaton-media.com/feed/",
+    "lang": "ja",
+    "category": "国内"
+  },
+  {
+    "name": "4Gamer",
+    "url": "https://www.4gamer.net/rss/index.xml",
+    "lang": "ja",
+    "category": "国内"
+  },
+  {
+    "name": "電ファミニコゲーマー",
+    "url": "https://news.denfaminicogamer.jp/feed",
+    "lang": "ja",
+    "category": "国内"
+  },
+  {
+    "name": "PC Gamer",
+    "url": "https://www.pcgamer.com/rss/",
+    "lang": "en",
+    "category": "海外"
+  },
+  {
+    "name": "GameSpot",
+    "url": "https://www.gamespot.com/feeds/news/",
+    "lang": "en",
+    "category": "海外"
+  },
+  {
+    "name": "Rock Paper Shotgun",
+    "url": "https://feeds.feedburner.com/RockPaperShotgun",
+    "lang": "en",
+    "category": "海外"
+  },
+  {
+    "name": "Nintendo Life",
+    "url": "https://www.nintendolife.com/feeds/latest",
+    "lang": "en",
+    "category": "海外"
+  },
+  {
+    "name": "Gematsu",
+    "url": "https://www.gematsu.com/feed",
+    "lang": "en",
+    "category": "海外"
+  }
+]

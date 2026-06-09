@@ -1,0 +1,17 @@
+{
+  "name": "game-news-blog",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ゲームニュースを毎日収集し、Claude がリライトして WordPress に下書き投稿する自動ブログ",
+  "scripts": {
+    "fetch": "node scripts/fetch.mjs",
+    "post": "node scripts/post.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "rss-parser": "^3.13.0"
+  }
+}
